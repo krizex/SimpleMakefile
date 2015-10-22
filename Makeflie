@@ -1,0 +1,73 @@
+INC_DIR := include
+SRC_DIR := source
+OBJ_DIR := obj
+
+$(shell mkdir -p $(OBJ_DIR))
+
+SRCS := $(shell find $(SRC_DIR) -name '*.cpp' )
+OBJS := $(subst $(SRC_DIR)/,$(OBJ_DIR)/,$(SRCS:.cpp=.o))
+
+TARGET := myApp
+TARGET_LIB := libmy.so
+
+INCLUDES = -Iinclude
+LIBS = -Llibs 
+
+UNAME := $(shell uname)
+
+ifeq ($(UNAME),HP-UX)
+CC = aCC 
+CXX = aCC 
+CXXFLAGS = -D_HP_UX -D__STDC_EXT__ -DHP_UX
+CXXARCHFLAGS := +DD64
+CXXFLAGS += -DMM_THREADSAFE -Z -ext -AA +u4  -mt $(DISABLEDWARNINGS) $(CXXARCHFLAGS)
+CXXFLAGS += -g -D_DEBUG +noobjdebug +O3 -Wl,-a,archive_shared +Onolimit +DSnative -Wl,+mergeseg
+endif
+ifeq ($(UNAME), Linux)
+CC  = gcc
+CXX = g++
+CFLAGS   = -fPIC -rdynamic -pthread -Wall -g
+CXXFLAGS = -D_LINUX -DLINUX -Wno-invalid-offsetof -pthread -ftemplate-depth-128 -fPIC -rdynamic
+CXXFLAGS += -D_REENTRANT
+CXXFLAGS += -m64 -g -Wall
+endif   
+ifeq ($(UNAME), AIX)
+CC = xlc_r
+CXX = xlC_r
+CFLAGS   = -qcpluscmt
+CXXFLAGS = -qnotempinc 
+CXXFLAGS += -D_AIX -D_LINUX_SOURCE_COMPAT -D_REENTRANT  -qeh  
+CXXFLAGS += -q64 -qwarn64 -qsuppress=1540-5344:1540-5334:1540-5328:1540-5329 
+CXXARCHFLAGS := -D_LARGE_FILES
+CXXFLAGS += -brtl -qrtti=all $(CXXARCHFLAGS)
+CXXFLAGS += -g -O3 -D_DEBUG -qinline
+LDPLATFORMFLAGS = -bhalt:5 -Wl,-blibpath:$(prefix)/lib:/usr/lpp/xlopt:/usr/lib/threads:/usr/vacpp/lib:/usr/lib:/lib -lpthread -brtl 
+endif
+
+CXXFLAGS += $(INCLUDES)
+LINKWITH += $(CXXFLAGS) $(LIBS) 
+
+vpath %.cpp source
+vpath %.h include
+
+.PHONY: all lib clean test 
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS) 
+        $(CXX) -o $@ $^ $(LINKWITH)
+
+$(OBJ_DIR)/%.o: %.cpp 
+        $(CXX) -c -o $@ $(CXXFLAGS) $<
+
+lib: $(TARGET_LIB)
+
+$(TARGET_LIB): $(OBJS)
+        $(CXX) $(CXXFLAGS) -shared -o $@ $^  $(LIBS)           
+
+test:
+        ./$(TARGET)
+
+clean:
+        rm -f $(TARGET); rm -rf ${OBJ_DIR}
+
