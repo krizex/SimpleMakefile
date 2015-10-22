@@ -1,0 +1,2 @@
+# SimpleMakefile
+a simple makefile
